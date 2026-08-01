@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>山海经地图</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=Noto+Sans+SC:wght@300;400;500;700&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: transparent;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        html, body { width: 100%; height: 100%; }
+
+        .map-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-height: 400px;
+            overflow: hidden;
+            cursor: grab;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            background: #f5f0e6;
+        }
+        .map-container:active { cursor: grabbing; }
+        .map-container.dragging { cursor: grabbing; }
+
+        #map-content-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 1280px;
+            height: 720px;
+            transform-origin: 0 0;
+            will-change: transform;
+        }
+
+        .game-map-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            pointer-events: none;
+        }
+
+        .regions-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: auto;
+        }
+        .region-path {
+            fill: rgba(0, 0, 0, 0.01);
+            stroke: none;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+        .region-path.locked {
+            stroke: none;
+            cursor: not-allowed;
+        }
+        .region-path.active {
+            stroke: none;
+        }
+
+        .region-label {
+            position: absolute;
+            font-family: 'Ma Shan Zheng', 'STXingkai', 'STKaiti', 'KaiTi', 'FangSong', serif;
+            font-size: 32px;
+            font-weight: bold;
+            color: #1a1a1a;
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.9), -1px -1px 2px rgba(255, 255, 255, 0.9), 1px -1px 2px rgba(255, 255, 255, 0.9), -1px 1px 2px rgba(255, 255, 255, 0.9);
+            pointer-events: auto;
+            cursor: pointer;
+            white-space: nowrap;
+            z-index: 50;
+            letter-spacing: 5px;
+        }
+        .region-label.active {
+            color: #c73e1d;
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.9), 0 0 10px rgba(199, 62, 29, 0.6);
+        }
+
+        /* 上北下南左西右东 */
+        .beishan-label { top: 18%; left: 50%; transform: translateX(-50%); }
+        .nanshan-label { bottom: 18%; left: 50%; transform: translateX(-50%); }
+        .xishan-label { top: 50%; left: 8%; transform: translateY(-50%); }
+        .dongshan-label { top: 50%; right: 20%; transform: translateY(-50%); }
+        .zhongshan-label { top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 42px; }
+        /* 海内在右下角 */
+        .hainei-label { bottom: 25%; right: 22%; }
+        /* 海外在右上角 */
+        .haiwai-label { top: 28%; right: 24%; }
+        /* 大荒在最右上侧 */
+        .dahuang-label { top: 3%; right: 2%; font-size: 36px; z-index: 100; }
+
+        .current-marker {
+            position: absolute;
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+        .marker-dot {
+            width: 14px;
+            height: 14px;
+            background: radial-gradient(circle, #ff6b4a 0%, #c73e1d 70%, transparent 100%);
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 12px rgba(199, 62, 29, 0.9), 0 2px 6px rgba(0, 0, 0, 0.4);
+            z-index: 2;
+        }
+        .marker-pulse {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            border: 2px solid rgba(199, 62, 29, 0.6);
+            border-radius: 50%;
+            animation: markerPulse 2s ease-out infinite;
+        }
+        .marker-pulse.delay { animation-delay: 1s; }
+        @keyframes markerPulse {
+            0% { transform: scale(0.3); opacity: 1; }
+            100% { transform: scale(2.5); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="map-container" id="map-container">
+        <div id="map-content-wrapper">
+            <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=ancient%20Chinese%20Shanhaijing%20mythological%20world%20map%20illustration%2C%20no%20text%20no%20letters%20no%20watermark%2C%20top-down%20view%2C%20hand-drawn%20ink%20painting%20style%2C%20fantasy%20landscape%20design%2C%20eight%20geographical%20regions%20seamlessly%20connected%20without%20borders%2C%20northern%20region%20with%20snow-capped%20mountains%20and%20cold%20forests%2C%20southern%20region%20with%20lush%20tropical%20jungles%20and%20rivers%2C%20western%20region%20with%20golden%20deserts%20and%20canyons%2C%20eastern%20region%20with%20blue%20ocean%20and%20coastal%20islands%2C%20central%20region%20with%20golden%20plains%20and%20ancient%20palaces%2C%20southeast%20corner%20with%20sea%20within%20territory%2C%20northeast%20corner%20with%20sea%20beyond%20territory%2C%20outer%20border%20with%20mysterious%20wilderness%2C%20mystical%20creatures%20like%20phoenix%20nine-tailed%20fox%20dragon%2C%20winding%20rivers%20and%20lakes%2C%20old%20parchment%20texture%20background%2C%20warm%20earth%20tones%2C%2016x9%20landscape%2C%20clean%20no%20logo&image_size=landscape_16_9" alt="山海经地图" class="game-map-bg">
+
+            <!-- 8大区域 - 单个SVG包含所有path -->
+            <svg class="regions-svg" viewBox="0 0 100 100" preserveAspectRatio="none" id="regions-svg">
+                <!-- 大荒经 - 最外围 -->
+                <path class="region-path" data-region="dahuang" d="M0,0 L3,2 L0,5 L2,8 L0,12 L3,15 L1,18 L4,22 L0,26 L3,30 L1,34 L4,38 L0,42 L3,46 L1,50 L4,54 L0,58 L3,62 L1,66 L4,70 L0,74 L3,78 L1,82 L4,86 L0,90 L3,94 L1,98 L0,100 L8,97 L10,100 L14,98 L16,100 L20,97 L22,100 L26,98 L28,100 L32,97 L34,100 L38,98 L40,100 L44,97 L46,100 L50,98 L52,100 L56,97 L58,100 L62,98 L64,100 L68,97 L70,100 L74,98 L76,100 L80,97 L82,100 L86,98 L88,100 L92,97 L94,100 L98,98 L100,100 L97,94 L100,90 L96,86 L100,82 L97,78 L100,74 L96,70 L100,66 L97,62 L100,58 L96,54 L100,50 L97,46 L100,42 L96,38 L100,34 L97,30 L100,26 L96,22 L100,18 L97,15 L100,12 L96,8 L100,5 L97,2 L100,0 L92,3 L90,0 L86,3 L84,0 L80,3 L78,0 L74,3 L72,0 L68,3 L66,0 L62,3 L60,0 L56,3 L54,0 L50,3 L48,0 L44,3 L42,0 L38,3 L36,0 L32,3 L30,0 L26,3 L24,0 L20,3 L18,0 L14,3 L12,0 L8,3 Z" />
+                <!-- 海外经 -->
+                <path class="region-path" data-region="haiwai" d="M8,8 L12,7 L16,9 L18,6 L22,8 L24,5 L28,7 L30,4 L34,6 L36,3 L40,5 L42,2 L46,4 L48,1 L52,3 L54,0 L58,2 L60,4 L64,2 L66,5 L70,3 L72,6 L76,4 L78,7 L82,5 L84,8 L88,6 L92,9 L90,14 L93,18 L91,22 L94,26 L92,30 L95,34 L92,38 L95,42 L92,46 L95,50 L92,54 L95,58 L92,62 L95,66 L92,70 L95,74 L92,78 L94,82 L91,86 L92,92 L88,94 L84,92 L82,95 L78,93 L76,96 L72,94 L70,97 L66,95 L64,98 L60,96 L58,98 L54,97 L52,100 L48,98 L46,100 L42,97 L40,99 L36,97 L34,100 L30,97 L28,99 L24,97 L22,99 L18,96 L16,98 L12,96 L10,98 L8,94 L10,90 L7,86 L9,82 L6,78 L9,74 L6,70 L9,66 L6,62 L9,58 L6,54 L9,50 L6,46 L9,42 L6,38 L9,34 L6,30 L9,26 L6,22 L9,18 L7,14 Z" />
+                <!-- 海内经 -->
+                <path class="region-path" data-region="hainei" d="M18,16 L22,15 L26,17 L28,14 L32,16 L34,13 L38,15 L40,12 L44,14 L46,11 L50,13 L52,10 L56,12 L58,14 L62,12 L64,15 L68,13 L70,16 L74,14 L76,17 L80,15 L82,18 L84,16 L86,20 L84,24 L86,28 L84,32 L86,36 L84,40 L86,44 L84,48 L86,52 L84,56 L86,60 L84,64 L86,68 L84,72 L86,76 L84,80 L82,84 L78,82 L76,85 L72,83 L70,86 L66,84 L64,87 L60,85 L58,87 L54,86 L52,88 L48,86 L46,88 L42,86 L40,88 L36,86 L34,88 L30,86 L28,88 L24,86 L22,88 L18,85 L16,82 L14,78 L16,74 L14,70 L16,66 L14,62 L16,58 L14,54 L16,50 L14,46 L16,42 L14,38 L16,34 L14,30 L16,26 L14,22 L16,18 Z" />
+                <!-- 北山经 -->
+                <path class="region-path" data-region="beishan" d="M24,18 L28,20 L32,17 L36,21 L40,18 L44,22 L48,19 L52,23 L56,20 L60,24 L64,20 L68,23 L72,20 L76,24 L72,30 L68,34 L64,32 L60,36 L56,34 L52,38 L48,36 L44,38 L40,36 L36,38 L32,35 L28,37 L24,34 L22,28 Z" />
+                <!-- 南山经 -->
+                <path class="region-path" data-region="nanshan" d="M24,66 L28,64 L32,67 L36,63 L40,66 L44,62 L48,65 L52,61 L56,64 L60,60 L64,63 L68,60 L72,63 L76,60 L72,70 L68,74 L64,72 L60,76 L56,74 L52,78 L48,76 L44,78 L40,76 L36,78 L32,75 L28,77 L24,74 L22,70 Z" />
+                <!-- 西山经 -->
+                <path class="region-path" data-region="xishan" d="M18,30 L22,28 L26,32 L28,36 L26,42 L28,48 L26,54 L28,60 L26,66 L22,68 L18,66 L16,62 L14,56 L16,50 L14,44 L16,38 L14,34 Z" />
+                <!-- 东山经 -->
+                <path class="region-path" data-region="dongshan" d="M82,30 L78,28 L74,32 L72,36 L74,42 L72,48 L74,54 L72,60 L74,66 L78,68 L82,66 L84,62 L86,56 L84,50 L86,44 L84,38 L86,34 Z" />
+                <!-- 中山经 -->
+                <path class="region-path" data-region="zhongshan" d="M42,36 L48,32 L54,34 L60,32 L64,38 L66,44 L64,52 L66,58 L62,64 L56,66 L50,68 L44,66 L38,64 L34,58 L36,50 L34,44 L38,38 Z" />
+            </svg>
+
+            <!-- 区域标签 -->
+            <div class="region-label dahuang-label" data-region="dahuang">大荒经</div>
+            <div class="region-label haiwai-label" data-region="haiwai">海外经</div>
+            <div class="region-label hainei-label" data-region="hainei">海内经</div>
+            <div class="region-label beishan-label" data-region="beishan">北山经</div>
+            <div class="region-label nanshan-label" data-region="nanshan">南山经</div>
+            <div class="region-label xishan-label" data-region="xishan">西山经</div>
+            <div class="region-label dongshan-label" data-region="dongshan">东山经</div>
+            <div class="region-label zhongshan-label" data-region="zhongshan">中山经</div>
+
+            <div id="map-marker-current" class="current-marker">
+                <div class="marker-pulse"></div>
+                <div class="marker-pulse delay"></div>
+                <div class="marker-dot"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const mapState = {
+            x: 0,
+            y: 0,
+            scale: 1,
+            isDragging: false,
+            startX: 0,
+            startY: 0,
+            minScale: 0.2,
+            maxScale: 3,
+            fitScale: 1
+        };
+
+        const regionMarkerPos = {
+            // 上北下南左西右东
+            beishan: { x: 50, y: 22 },
+            nanshan: { x: 50, y: 78 },
+            xishan: { x: 12, y: 50 },
+            dongshan: { x: 72, y: 50 },
+            zhongshan: { x: 42, y: 50 },
+            // 海内在右下角
+            hainei: { x: 72, y: 72 },
+            // 海外在右上角
+            haiwai: { x: 72, y: 28 },
+            // 大荒在最外层（环绕整个地图）
+            dahuang: { x: 3, y: 50 }
+        };
+
+        let currentRegion = 'nanshan';
+        let unlockedRegions = ['nanshan'];
+
+        const container = document.getElementById('map-container');
+        const wrapper = document.getElementById('map-content-wrapper');
+        const regionsSvg = document.getElementById('regions-svg');
+
+        function calcFitScale() {
+            const containerRect = container.getBoundingClientRect();
+            const contentW = wrapper.offsetWidth;
+            const contentH = wrapper.offsetHeight;
+            if (contentW === 0 || contentH === 0) return 1;
+            const scaleX = containerRect.width / contentW;
+            const scaleY = containerRect.height / contentH;
+            return Math.max(scaleX, scaleY);
+        }
+
+        function clampPosition() {
+            const containerRect = container.getBoundingClientRect();
+            const cw = containerRect.width;
+            const ch = containerRect.height;
+            const contentW = wrapper.offsetWidth;
+            const contentH = wrapper.offsetHeight;
+            const scale = mapState.scale;
+            const scaledW = contentW * scale;
+            const scaledH = contentH * scale;
+
+            if (scaledW <= cw) {
+                mapState.x = (cw - scaledW) / 2;
+            } else {
+                const maxX = 0;
+                const minX = cw - scaledW;
+                mapState.x = Math.max(minX, Math.min(maxX, mapState.x));
+            }
+
+            if (scaledH <= ch) {
+                mapState.y = (ch - scaledH) / 2;
+            } else {
+                const maxY = 0;
+                const minY = ch - scaledH;
+                mapState.y = Math.max(minY, Math.min(maxY, mapState.y));
+            }
+        }
+
+        function applyTransform() {
+            wrapper.style.transform = `translate(${mapState.x}px, ${mapState.y}px) scale(${mapState.scale})`;
+        }
+
+        function updateTransform() {
+            clampPosition();
+            applyTransform();
+        }
+
+        function zoomAt(mouseX, mouseY, delta) {
+            const prevScale = mapState.scale;
+            let newScale = mapState.scale * delta;
+            // 缩小时不能小于 fitScale（铺满div的大小）
+            if (delta < 1 && newScale < mapState.fitScale) {
+                newScale = mapState.fitScale;
+            }
+            mapState.scale = Math.min(mapState.maxScale, newScale);
+            const ratio = mapState.scale / prevScale;
+            mapState.x = mouseX - ratio * (mouseX - mapState.x);
+            mapState.y = mouseY - ratio * (mouseY - mapState.y);
+            updateTransform();
+        }
+
+        function panToRegion(regionId) {
+            const pos = regionMarkerPos[regionId];
+            if (!pos) return;
+            const contentW = wrapper.offsetWidth;
+            const contentH = wrapper.offsetHeight;
+            const targetX = (pos.x / 100) * contentW;
+            const targetY = (pos.y / 100) * contentH;
+            const containerRect = container.getBoundingClientRect();
+            mapState.scale = Math.min(Math.max(1.5, mapState.fitScale), mapState.maxScale);
+            const scaledTargetX = targetX * mapState.scale;
+            const scaledTargetY = targetY * mapState.scale;
+            mapState.x = containerRect.width / 2 - scaledTargetX;
+            mapState.y = containerRect.height / 2 - scaledTargetY;
+            updateTransform();
+        }
+
+        function updateMarker(regionId) {
+            const pos = regionMarkerPos[regionId];
+            const marker = document.getElementById('map-marker-current');
+            if (pos && marker) {
+                marker.style.left = pos.x + '%';
+                marker.style.top = pos.y + '%';
+                marker.style.transform = 'translate(-50%, -50%)';
+            }
+        }
+
+        function updateRegions() {
+            const paths = regionsSvg.querySelectorAll('.region-path');
+            const labels = document.querySelectorAll('.region-label');
+            paths.forEach(path => {
+                const regionId = path.getAttribute('data-region');
+                if (!unlockedRegions.includes(regionId)) {
+                    path.classList.add('locked');
+                } else {
+                    path.classList.remove('locked');
+                }
+                if (regionId === currentRegion) {
+                    path.classList.add('active');
+                } else {
+                    path.classList.remove('active');
+                }
+            });
+            labels.forEach(label => {
+                const regionId = label.getAttribute('data-region');
+                if (regionId) {
+                    if (!unlockedRegions.includes(regionId)) {
+                        label.classList.add('locked');
+                    } else {
+                        label.classList.remove('locked');
+                    }
+                    if (regionId === currentRegion) {
+                        label.classList.add('active');
+                    } else {
+                        label.classList.remove('active');
+                    }
+                }
+            });
+        }
+
+        function clickRegion(regionId) {
+            if (window.parent !== window) {
+                window.parent.postMessage({ type: 'regionClick', regionId: regionId }, '*');
+            }
+        }
+
+        let dragMoved = false;
+        let dragStartX = 0, dragStartY = 0;
+        let clickedRegionId = null;
+
+        function getRegionFromEvent(e) {
+            const target = e.target;
+            if (target.classList.contains('region-path')) {
+                return target.getAttribute('data-region');
+            }
+            const label = target.closest('.region-label');
+            if (label) {
+                return label.getAttribute('data-region');
+            }
+            return null;
+        }
+
+        function initInteraction() {
+
+            container.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const rect = container.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                zoomAt(mouseX, mouseY, delta);
+            }, { passive: false });
+
+            container.addEventListener('mousedown', (e) => {
+                clickedRegionId = getRegionFromEvent(e);
+                mapState.isDragging = true;
+                mapState.startX = e.clientX - mapState.x;
+                mapState.startY = e.clientY - mapState.y;
+                dragMoved = false;
+                dragStartX = e.clientX;
+                dragStartY = e.clientY;
+                container.classList.add('dragging');
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!mapState.isDragging) return;
+                const dx = e.clientX - dragStartX;
+                const dy = e.clientY - dragStartY;
+                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                    dragMoved = true;
+                }
+                if (dragMoved) {
+                    mapState.x = e.clientX - mapState.startX;
+                    mapState.y = e.clientY - mapState.startY;
+                    updateTransform();
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (mapState.isDragging && !dragMoved && clickedRegionId) {
+                    clickRegion(clickedRegionId);
+                }
+                mapState.isDragging = false;
+                clickedRegionId = null;
+                container.classList.remove('dragging');
+            });
+
+            let lastTouchDist = 0;
+            let touchStartRegionId = null;
+            container.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    e.preventDefault();
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    lastTouchDist = Math.sqrt(dx * dx + dy * dy);
+                } else if (e.touches.length === 1) {
+                    const touch = e.touches[0];
+                    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+                    touchStartRegionId = null;
+                    if (el) {
+                        if (el.classList.contains('region-path')) {
+                            touchStartRegionId = el.getAttribute('data-region');
+                        } else {
+                            const label = el.closest('.region-label');
+                            if (label) {
+                                touchStartRegionId = label.getAttribute('data-region');
+                            }
+                        }
+                    }
+                    mapState.isDragging = true;
+                    mapState.startX = touch.clientX - mapState.x;
+                    mapState.startY = touch.clientY - mapState.y;
+                    dragMoved = false;
+                    dragStartX = touch.clientX;
+                    dragStartY = touch.clientY;
+                    container.classList.add('dragging');
+                }
+            }, { passive: false });
+
+            container.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (e.touches.length === 2) {
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (lastTouchDist > 0) {
+                        const ratio = dist / lastTouchDist;
+                        const rect = container.getBoundingClientRect();
+                        const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+                        const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+                        zoomAt(cx, cy, ratio);
+                    }
+                    lastTouchDist = dist;
+                } else if (e.touches.length === 1 && mapState.isDragging) {
+                    const touch = e.touches[0];
+                    const dx = touch.clientX - dragStartX;
+                    const dy = touch.clientY - dragStartY;
+                    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                        dragMoved = true;
+                    }
+                    if (dragMoved) {
+                        mapState.x = touch.clientX - mapState.startX;
+                        mapState.y = touch.clientY - mapState.startY;
+                        updateTransform();
+                    }
+                }
+            }, { passive: false });
+
+            container.addEventListener('touchend', () => {
+                if (mapState.isDragging && !dragMoved && touchStartRegionId) {
+                    clickRegion(touchStartRegionId);
+                }
+                mapState.isDragging = false;
+                lastTouchDist = 0;
+                touchStartRegionId = null;
+                container.classList.remove('dragging');
+            });
+
+            window.addEventListener('resize', () => {
+                mapState.fitScale = calcFitScale();
+                if (mapState.scale < mapState.fitScale) {
+                    mapState.scale = mapState.fitScale;
+                    mapState.x = 0;
+                    mapState.y = 0;
+                    updateTransform();
+                } else {
+                    updateTransform();
+                }
+            });
+        }
+
+        window.addEventListener('message', (event) => {
+            const data = event.data;
+            if (!data || !data.type) return;
+
+            switch (data.type) {
+                case 'setRegion':
+                    currentRegion = data.regionId;
+                    updateMarker(currentRegion);
+                    updateRegions();
+                    break;
+                case 'setUnlocked':
+                    unlockedRegions = data.regions || [];
+                    updateRegions();
+                    break;
+                case 'panToRegion':
+                    panToRegion(data.regionId);
+                    break;
+            }
+        });
+
+        function init() {
+            mapState.fitScale = calcFitScale();
+            mapState.scale = mapState.fitScale;
+            mapState.x = 0;
+            mapState.y = 0;
+            updateMarker(currentRegion);
+            updateRegions();
+            initInteraction();
+            updateTransform();
+
+            setTimeout(() => {
+                mapState.fitScale = calcFitScale();
+                mapState.scale = mapState.fitScale;
+                mapState.x = 0;
+                mapState.y = 0;
+                updateTransform();
+            }, 200);
+        }
+
+        window.addEventListener('resize', () => {
+            mapState.fitScale = calcFitScale();
+            updateTransform();
+        });
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>

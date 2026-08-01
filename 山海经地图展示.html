@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>山海经地图 - 八方天下</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #2d2d44 50%, #1a1a2e 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Noto Serif SC', serif;
+            overflow: hidden;
+        }
+
+        .map-container {
+            position: relative;
+            width: 90vw;
+            max-width: 900px;
+            aspect-ratio: 16/9;
+            border: 6px solid #5c4a2a;
+            border-radius: 12px;
+            box-shadow: 
+                inset 0 0 60px rgba(0,0,0,0.5),
+                0 0 0 3px #8b7355,
+                0 0 0 6px rgba(201,168,76,0.3),
+                0 20px 60px rgba(0,0,0,0.5);
+            overflow: hidden;
+            background: #2a3a2a;
+        }
+
+        .map-bg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+
+        .map-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        /* 区域SVG样式 */
+        .region-svg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: auto;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            z-index: 20;
+        }
+
+        .region-path {
+            transition: all 0.4s ease;
+            fill: rgba(139,115,85,0.25);
+            stroke: rgba(201,168,76,0.5);
+            stroke-width: 0.4;
+        }
+
+        .region-svg:hover {
+            z-index: 100;
+            transform: scale(1.02);
+        }
+
+        .region-svg:hover .region-path {
+            fill: rgba(201,168,76,0.5);
+            stroke: rgba(255,215,0,1);
+            stroke-width: 0.8;
+            filter: drop-shadow(0 0 8px rgba(255,215,0,0.8));
+        }
+
+        .region-svg.active .region-path {
+            fill: rgba(199,62,29,0.6);
+            stroke: rgba(255,100,50,1);
+            stroke-width: 1;
+            filter: drop-shadow(0 0 12px rgba(199,62,29,0.9));
+        }
+
+        /* 区域标签 - 行书 */
+        .region-label {
+            position: absolute;
+            font-family: 'Ma Shan Zheng', 'STXingkai', 'KaiTi', serif;
+            color: rgba(255,248,230,0.95);
+            text-shadow: 
+                2px 2px 4px rgba(0,0,0,0.9),
+                0 0 15px rgba(201,168,76,0.6);
+            pointer-events: auto;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            z-index: 50;
+            letter-spacing: 4px;
+            white-space: nowrap;
+        }
+
+        .region-label:hover {
+            transform: scale(1.2) translateY(-5px);
+            color: #fff;
+            text-shadow: 
+                3px 3px 6px rgba(0,0,0,1),
+                0 0 25px rgba(255,215,0,1);
+            z-index: 150;
+        }
+
+        .region-label.active {
+            color: #ff6b4a;
+            text-shadow: 
+                3px 3px 6px rgba(0,0,0,1),
+                0 0 25px rgba(255,107,74,1);
+        }
+
+        /* 标签位置 */
+        .dahuang-label { top: 50%; left: 5%; font-size: 1.8rem; transform: rotate(-90deg) translateY(-50%); transform-origin: left center; }
+        .haiwai-label { top: 24%; left: 18%; font-size: 1.4rem; }
+        .hainei-label { top: 24%; left: 30%; font-size: 1.4rem; }
+        .mountain-label { font-size: 1.6rem; font-weight: bold; }
+        .beishan-label { top: 12%; left: 50%; transform: translateX(-50%); font-size: 1.8rem; }
+        .nanshan-label { bottom: 12%; left: 50%; transform: translateX(-50%); font-size: 1.8rem; }
+        .xishan-label { top: 50%; left: 6%; transform: translateY(-50%) rotate(-90deg); font-size: 1.6rem; }
+        .dongshan-label { top: 50%; right: 6%; transform: translateY(-50%) rotate(90deg); font-size: 1.6rem; }
+        .zhongshan-label { top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 2.2rem; }
+
+        /* 标签悬停保持位置 */
+        .beishan-label:hover { transform: translateX(-50%) scale(1.2) translateY(-5px); }
+        .nanshan-label:hover { transform: translateX(-50%) scale(1.2) translateY(-5px); }
+        .dahuang-label:hover { transform: rotate(-90deg) scale(1.2) translateY(-5px); }
+        .xishan-label:hover { transform: translateY(-50%) rotate(-90deg) scale(1.2); }
+        .dongshan-label:hover { transform: translateY(-50%) rotate(90deg) scale(1.2); }
+        .zhongshan-label:hover { transform: translate(-50%, -50%) scale(1.2); }
+
+        /* 信息弹窗 */
+        .info-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            background: linear-gradient(145deg, rgba(42,35,28,0.95), rgba(26,20,15,0.98));
+            border: 3px solid #8b7355;
+            border-radius: 16px;
+            padding: 2rem 2.5rem;
+            max-width: 450px;
+            width: 90%;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 
+                0 0 30px rgba(0,0,0,0.8),
+                inset 0 0 20px rgba(201,168,76,0.1);
+        }
+
+        .info-panel.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .info-panel h2 {
+            font-family: 'Ma Shan Zheng', serif;
+            font-size: 2rem;
+            color: #c9a84c;
+            margin-bottom: 0.5rem;
+            text-align: center;
+            letter-spacing: 6px;
+        }
+
+        .info-panel .book-source {
+            font-size: 0.9rem;
+            color: rgba(201,168,76,0.7);
+            text-align: center;
+            margin-bottom: 1.2rem;
+        }
+
+        .info-panel .description {
+            font-size: 1rem;
+            color: rgba(255,248,230,0.9);
+            line-height: 1.8;
+            margin-bottom: 1.5rem;
+            text-align: justify;
+        }
+
+        .info-panel .creatures-section {
+            margin-bottom: 1rem;
+        }
+
+        .info-panel .section-title {
+            font-size: 0.9rem;
+            color: #c9a84c;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-panel .creature-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .info-panel .creature-tag {
+            background: rgba(201,168,76,0.2);
+            border: 1px solid rgba(201,168,76,0.4);
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: rgba(255,248,230,0.9);
+        }
+
+        .info-panel .close-btn {
+            display: block;
+            width: 100%;
+            margin-top: 1.5rem;
+            padding: 0.8rem;
+            background: linear-gradient(135deg, #8b7355, #6a5a3a);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-family: 'Noto Serif SC', serif;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 4px;
+        }
+
+        .info-panel .close-btn:hover {
+            background: linear-gradient(135deg, #c9a84c, #8b7355);
+            transform: translateY(-2px);
+        }
+
+        /* 标题 */
+        .page-title {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Ma Shan Zheng', serif;
+            font-size: 2.5rem;
+            color: #c9a84c;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8), 0 0 20px rgba(201,168,76,0.5);
+            letter-spacing: 8px;
+            z-index: 5;
+        }
+
+        /* 图例 */
+        .legend {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 2rem;
+            font-size: 0.9rem;
+            color: rgba(255,248,230,0.7);
+            z-index: 5;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .legend-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+        }
+
+        .legend-dot.current { background: radial-gradient(circle, #ff6b4a, #c73e1d); }
+        .legend-dot.explored { background: radial-gradient(circle, #c9a84c, #8b7355); }
+        .legend-dot.locked { background: #666; }
+
+        /* 当前位置标记 */
+        .current-marker {
+            position: absolute;
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            left: 50%;
+            bottom: 15%;
+        }
+
+        .marker-dot {
+            width: 16px;
+            height: 16px;
+            background: radial-gradient(circle, #ff6b4a 0%, #c73e1d 60%, transparent 100%);
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 0 15px rgba(199,62,29,1), 0 3px 8px rgba(0,0,0,0.5);
+            z-index: 2;
+            animation: markerPulseCore 1.5s ease-in-out infinite;
+        }
+
+        .marker-ring {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(199,62,29,0.6);
+            border-radius: 50%;
+            animation: markerPulseRing 2s ease-out infinite;
+        }
+
+        .marker-ring.delay { animation-delay: 1s; }
+
+        @keyframes markerPulseCore {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        @keyframes markerPulseRing {
+            0% { transform: scale(0.4); opacity: 1; }
+            100% { transform: scale(2.5); opacity: 0; }
+        }
+
+        /* 锁定标记 */
+        .lock-badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            background: rgba(100,100,100,0.8);
+            color: #fff;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-left: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="page-title">山海经 · 八方天下</h1>
+
+    <div class="map-container">
+        <!-- 地图背景 -->
+        <img class="map-bg" src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=Ancient%20Chinese%20Shanhaijing%20mythological%20world%20map%2C%20vintage%20scroll%20style%2C%20hand%20drawn%20illustration%2C%20mountains%20and%20oceans%2C%20mythical%20creatures%20like%20dragons%20and%20foxes%2C%20traditional%20Chinese%20painting%20style%2C%20old%20paper%20texture%2C%20compass%20rose%2C%20mountains%20with%20snow%2C%20forests%2C%20rivers%2C%20islands%2C%20ancient%20buildings%2C%20fantasy%20world%20map%2C%20warm%20earth%20tones&image_size=landscape_16_9" alt="山海经地图">
+
+        <!-- 区域覆盖层 -->
+        <div class="map-overlay">
+            <!-- 大荒经（边缘） -->
+            <svg class="region-svg" data-region="dahuang" viewBox="0 0 100 100" preserveAspectRatio="none" onclick="showRegion('dahuang')">
+                <path class="region-path" d="M0,0 L12,0 L12,100 L0,100 Z M88,0 L100,0 L100,100 L88,100 Z M12,0 L88,0 L88,8 L12,8 Z M12,92 L88,92 L88,100 L12,100 Z"/>
+            </svg>
+            <div class="region-label dahuang-label" data-region="dahuang" onclick="showRegion('dahuang')">大荒经</div>
+
+            <!-- 海外经（四角） -->
+            <svg class="region-svg" data-region="haiwai" viewBox="0 0 100 100" preserveAspectRatio="none" onclick="showRegion('haiwai')">
+                <path class="region-path" d="M12,8 L24,8 L24,32 L12,32 Z M76,8 L88,8 L88,42 L76,42 Z M12,68 L24,68 L24,92 L12,92 Z M76,58 L88,58 L88,92 L76,92 Z"/>
+            </svg>
+            <div class="region-label haiwai-label" data-region="haiwai" onclick="showRegion('haiwai')">海外经</div>
+
+            <!-- 海内经（内侧） -->
+            <svg class="region-svg" data-region="hainei" viewBox="0 0 100 100" preserveAspectRatio="none" onclick="showRegion('hainei')">
+                <path class="region-path" d="M24,8 L36,8 L36,28 L24,28 Z M64,12 L76,12 L76,38 L64,38 Z M24,72 L36,72 L36,92 L24,92 Z M64,68 L76,68 L76,88 L64,88 Z"/>
+            </svg>
+            <div class="region-label hainei-label" data-region="hainei" onclick="showRegion('hainei')">海内经</div>
+
+            <!-- 北山经（上方） -->
+            <svg class="region-svg" data-region="beishan" viewBox="0 0 100 100" preserveAspectRatio="none" onclick="showRegion('beishan')">
+                <path class="region-path" d="M28,8 L72,8 L78,25 L68,25 L54,16 L46,25 L32,25 L22,25 Z"/>
+            </svg>
+            <div class="region-label mountain-label beishan-label" data-region="beishan" onclick="showRegion('beishan')">北山经</div>
+
+            <!-- 南山经（下方） -->
+            <svg class="region-svg" data-region="nanshan" viewBox="0 0 100 100" preserveAspectRatio="none" onclick="showRegion('nanshan')">
+                <path class="region-path" d="M28,75 L34,92 L46,87 L50,92 L54,87 L66,92 L72,75 L66,75 L54,80 L50,75 L46,80 L34,75 Z"/>
+            </svg>
+            <div class="region-label mountain-label nanshan-label" data-region="nanshan" onclick="showRegion('nanshan')">南山经</div>
+
+            <!-- 西山经（左侧） -->
+            <svg class="region-svg" data-region="xishan" viewBox="0 0 100 100" preserveAspectRatio="none" onclick="showRegion('xishan')">
+                <path class="region-path" d="M10,32 L22,28 L28,48 L22,68 L10,72 L10,52 L6,42 Z"/>
+            </svg>
+            <div class="region-label mountain-label xishan-label" data-region="xishan" onclick="showRegion('xishan')">西山经</div>
+
+            <!-- 东山经（右侧） -->
+            <svg class="region-svg" data-region="dongshan" viewBox="0 0 100 100" preserveAspectRatio="none" onclick="showRegion('dongshan')">
+                <path class="region-path" d="M72,28 L90,32 L94,50 L90,68 L72,72 L72,52 L70,42 Z"/>
+            </svg>
+            <div class="region-label mountain-label dongshan-label" data-region="dongshan" onclick="showRegion('dongshan')">东山经</div>
+
+            <!-- 中山经（中央） -->
+            <svg class="region-svg" data-region="zhongshan" viewBox="0 0 100 100" preserveAspectRatio="none" onclick="showRegion('zhongshan')">
+                <path class="region-path" d="M38,38 L50,32 L62,38 L68,50 L62,62 L50,68 L38,62 L32,50 Z"/>
+            </svg>
+            <div class="region-label mountain-label zhongshan-label" data-region="zhongshan" onclick="showRegion('zhongshan')">中山经</div>
+
+            <!-- 当前位置标记 -->
+            <div class="current-marker">
+                <div class="marker-ring"></div>
+                <div class="marker-ring delay"></div>
+                <div class="marker-dot"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 信息弹窗 -->
+    <div class="info-panel" id="info-panel">
+        <h2 id="info-title">区域名称</h2>
+        <div class="book-source" id="info-book">来源</div>
+        <div class="description" id="info-desc">描述内容</div>
+        <div class="creatures-section">
+            <div class="section-title">🦄 此区域异兽</div>
+            <div class="creature-tags" id="info-creatures"></div>
+        </div>
+        <div class="creatures-section">
+            <div class="section-title">⛰️ 主要山系</div>
+            <div class="creature-tags" id="info-mountains"></div>
+        </div>
+        <button class="close-btn" onclick="closeInfo()">知道了</button>
+    </div>
+
+    <!-- 图例 -->
+    <div class="legend">
+        <div class="legend-item"><div class="legend-dot current"></div><span>当前位置</span></div>
+        <div class="legend-item"><div class="legend-dot explored"></div><span>可探索</span></div>
+        <div class="legend-item"><div class="legend-dot locked"></div><span>未解锁</span></div>
+    </div>
+
+    <script>
+        // 区域数据
+        const regionsData = {
+            nanshan: {
+                name: '南山经',
+                book: '山海经·南山经',
+                desc: '南山经记载了南方三大山系，招摇山为首，上有桂树、祝余草。著名的异兽九尾狐便出自青丘山，其音如婴儿，能食人。南山之地，草木繁茂，奇兽众多。',
+                creatures: ['九尾狐', '鹿蜀', '旋龟', '赤鱬'],
+                mountains: ['招摇山', '青丘山', '杻阳山', '猿翼山']
+            },
+            xishan: {
+                name: '西山经',
+                book: '山海经·西山经',
+                desc: '西山经记载了华山为首的四大山系。华山险峻，钱来之山产洗石。小华之山有鸟名曰翟，其状如鹤。西山多产玉石，神兽众多，昆仑山更是西王母居所。',
+                creatures: ['精卫', '陆吾', '英招', '当康'],
+                mountains: ['华山', '小华之山', '昆仑山', '钱来之山']
+            },
+            beishan: {
+                name: '北山经',
+                book: '山海经·北山经',
+                desc: '北山经记载了北方诸山，单狐之山为首。北山寒冷，多产怪鱼怪蛇。归山有鸟状如鹊白首，名曰瞿如。北山之境，山势险峻，人迹罕至，异兽奇诡。',
+                creatures: ['诸怀', '孟极', '狍鸮', '寓鸟'],
+                mountains: ['单狐之山', '求如之山', '归山', '带山']
+            },
+            dongshan: {
+                name: '东山经',
+                book: '山海经·东山经',
+                desc: '东山经记载了东方四大山系，樕𣘴之山为首。东山临海，多产美玉怪鱼。泰山雄伟，为五岳之首。空桑之山有兽状如牛虎爪，名曰麋鹿。',
+                creatures: ['从从', '䍺', '朱獳', '獙獙'],
+                mountains: ['樕𣘴之山', '泰山', '空桑之山', '东始之山']
+            },
+            zhongshan: {
+                name: '中山经',
+                book: '山海经·中山经',
+                desc: '中山经记载了中央十二山系，薄山为首。中山之地最为广阔，山川秀丽。休与之山有帝台浆草，食之不饥。中山乃天下之中，物产丰富，人文荟萃。',
+                creatures: ['雍和', '耕父', '神罗', '鸣蛇'],
+                mountains: ['薄山', '休与之山', '鼓钟之山', '昆吾之山']
+            },
+            haiwai: {
+                name: '海外经',
+                book: '山海经·海外经',
+                desc: '海外经记载了海外四方之国与异兽。海外南经有羽民国，其人能飞；海外西经有刑天舞干戚。海外诸国奇异，有大人国、小人国、长臂国等。',
+                creatures: ['刑天', '羽民', '烛龙', '相柳'],
+                mountains: ['羽民国', '交胫国', '不死国', '三苗国']
+            },
+            hainei: {
+                name: '海内经',
+                book: '山海经·海内经',
+                desc: '海内经记载了四海之内的地理和异兽。从巴蛇吞象到天狗御凶，海内八方各异气，千里殊风雨，充满了瑰丽的想象力。',
+                creatures: ['巴蛇', '天狗', '开明兽', '雷神'],
+                mountains: ['巴陵', '阴山', '都广之野', '桂林']
+            },
+            dahuang: {
+                name: '大荒经',
+                book: '山海经·大荒经',
+                desc: '大荒经记载了大荒之中的山川日月、神仙国度。这里是日月出没之地，有羲和浴日、常羲浴月，充满了创世神话的源头。',
+                creatures: ['羲和', '常羲', '应龙', '夙沙'],
+                mountains: ['羲和之国', '常羲浴月', '应龙处南极', '大荒北经']
+            }
+        };
+
+        // 当前选中的区域
+        let currentRegion = 'nanshan';
+
+        // 显示区域信息
+        function showRegion(regionId) {
+            const data = regionsData[regionId];
+            if (!data) return;
+
+            // 更新选中状态
+            document.querySelectorAll('.region-svg, .region-label').forEach(el => {
+                el.classList.remove('active');
+            });
+            document.querySelectorAll(`[data-region="${regionId}"]`).forEach(el => {
+                el.classList.add('active');
+            });
+
+            // 更新信息面板
+            document.getElementById('info-title').textContent = data.name;
+            document.getElementById('info-book').textContent = data.book;
+            document.getElementById('info-desc').textContent = data.desc;
+            
+            const creaturesContainer = document.getElementById('info-creatures');
+            creaturesContainer.innerHTML = data.creatures.map(c => 
+                `<span class="creature-tag">${c}</span>`
+            ).join('');
+
+            const mountainsContainer = document.getElementById('info-mountains');
+            mountainsContainer.innerHTML = data.mountains.map(m => 
+                `<span class="creature-tag">${m}</span>`
+            ).join('');
+
+            // 显示弹窗
+            document.getElementById('info-panel').classList.add('active');
+            
+            // 更新当前位置标记
+            updateMarker(regionId);
+        }
+
+        // 关闭信息面板
+        function closeInfo() {
+            document.getElementById('info-panel').classList.remove('active');
+        }
+
+        // 更新标记位置
+        function updateMarker(regionId) {
+            const positions = {
+                nanshan: { left: '50%', bottom: '15%' },
+                beishan: { left: '50%', top: '15%' },
+                xishan: { left: '12%', top: '50%' },
+                dongshan: { right: '12%', top: '50%' },
+                zhongshan: { left: '50%', top: '50%' },
+                haiwai: { left: '20%', top: '25%' },
+                hainei: { left: '30%', top: '25%' },
+                dahuang: { left: '50%', top: '50%' }
+            };
+
+            const pos = positions[regionId];
+            const marker = document.querySelector('.current-marker');
+            if (marker && pos) {
+                marker.style.left = pos.left || '50%';
+                marker.style.top = pos.top || 'auto';
+                marker.style.bottom = pos.bottom || 'auto';
+                marker.style.right = pos.right || 'auto';
+            }
+        }
+
+        // 初始化南山经为选中状态
+        showRegion('nanshan');
+        closeInfo(); // 初始不显示弹窗
+    </script>
+</body>
+</html>
