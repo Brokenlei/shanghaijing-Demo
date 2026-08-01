@@ -3159,6 +3159,9 @@
     </div>
 
     <script>
+        // 图片懒加载 - 自动给所有img添加loading=lazy
+        (function(){var ob=new MutationObserver(function(muts){muts.forEach(function(m){m.addedNodes.forEach(function(n){if(n.tagName==='IMG'){n.loading='lazy';}if(n.querySelectorAll){n.querySelectorAll('img').forEach(function(img){img.loading='lazy';});}});});});ob.observe(document.body,{childList:true,subtree:true});document.querySelectorAll('img').forEach(function(img){img.loading='lazy';});})();
+
         // ===== 30 CREATURES WITH AI IMAGES & VIDEOS =====
         const creaturesDB = [
             { name:'九尾狐', namePY:'jiǔ wěi hú', region:'nanshan', mountain:'青丘山', book:'南山经',
