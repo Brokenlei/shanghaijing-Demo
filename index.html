@@ -2382,12 +2382,20 @@
         @keyframes tutorialPulse { 0% { transform: scale(1); opacity: 0.9; } 100% { transform: scale(1.15); opacity: 0; } }
 
         /* ===== EVOLUTION STAGE EFFECTS ===== */
+        .stage-badge { display: inline-flex; align-items: center; gap: 2px; font-size: 0.7rem; font-weight: 600; padding: 1px 8px; border-radius: 10px; margin-left: 6px; vertical-align: middle; transition: all 0.3s; }
+        .stage-badge.egg { background: rgba(180,140,80,0.15); color: #8a6a3a; }
+        .stage-badge.baby { background: rgba(100,160,100,0.15); color: #4a8a4a; }
+        .stage-badge.adult { background: rgba(201,168,76,0.2); color: #b8941e; }
         .creature-avatar.stage-egg { animation: eggShake 2.4s ease-in-out infinite; }
         .creature-avatar.stage-egg img { box-shadow: 0 0 0 3px rgba(180,140,80,0.3), 0 0 20px rgba(180,140,80,0.2); }
-        .creature-avatar.stage-baby img { transform: scale(0.85); border-radius: 50%; }
+        .creature-avatar.stage-baby img { transform: scale(0.88); border-radius: 50%; }
         .creature-avatar.stage-adult img { box-shadow: 0 0 0 3px rgba(201,168,76,0.5), 0 0 28px rgba(201,168,76,0.6); }
         .creature-avatar.stage-adult { box-shadow: 0 0 35px rgba(201,168,76,0.55), 0 8px 25px rgba(0,0,0,0.1); }
         @keyframes eggShake { 0%, 100% { transform: rotate(0deg); } 20% { transform: rotate(-3deg); } 40% { transform: rotate(3deg); } 60% { transform: rotate(-2deg); } 80% { transform: rotate(2deg); } }
+        /* 成长值里程碑标记 */
+        .growth-milestones { position: relative; height: 0; }
+        .growth-milestone { position: absolute; top: -8px; width: 2px; height: 8px; background: rgba(201,168,76,0.5); transform: translateX(-50%); }
+        .growth-milestone::after { content: attr(data-label); position: absolute; top: -14px; left: 50%; transform: translateX(-50%); font-size: 0.55rem; color: rgba(201,168,76,0.7); white-space: nowrap; }
 
         /* ===== EVOLUTION ANIMATION ===== */
         .evolution-overlay { position: fixed; inset: 0; z-index: 2800; pointer-events: none; display: none; }
@@ -2849,6 +2857,7 @@
                 <button class="settings-item" onclick="manualCheckin()">📅 每日签到</button>
                 <button class="settings-item" onclick="toggleReadAloud();">🔊 <span id="readaloud-label">朗读：开</span></button>
                 <button class="settings-item" onclick="restartTutorial(); closeSettings();">📖 重看教程</button>
+                <button class="settings-item" id="privilege-btn" onclick="openPrivilegePanel(); closeSettings();" style="display:none">🔮 特权模式</button>
                 <div class="settings-divider"></div>
                 <button class="settings-item danger" onclick="resetGame()">🔄 重置游戏</button>
             </div>
@@ -2857,13 +2866,13 @@
         <div class="game-body">
             <div class="creature-card">
                 <div class="creature-avatar happy" id="creature-avatar">🦊<div class="mood-bubble" id="mood-bubble" style="background:#a8d8a8">😊</div><div class="particle-layer" id="avatar-particles"></div></div>
-                <div class="creature-name" id="display-name">小九<span class="stage-label egg" id="stage-label">🥚 蛋期</span></div>
+                <div class="creature-name" id="display-name">小九<span class="stage-badge egg" id="stage-label">🥚 蛋期</span></div>
                 <div class="creature-origin" id="creature-origin" onclick="showRegionInfo()">📍 <span id="origin-text">南山经 · 青丘山</span></div>
                 <div class="creature-species" id="creature-species">《山海经·南山经》九尾狐 · <span class="book-ref" onclick="showBookRef()">查看原文</span></div>
                 <div class="stats-row">
                     <div class="stat-bar-group"><div class="stat-bar-label"><span>饱食度</span><span id="hunger-val">80</span></div><div class="stat-bar"><div class="stat-bar-fill hunger" id="hunger-bar" style="width:80%"></div></div></div>
                     <div class="stat-bar-group"><div class="stat-bar-label"><span>心情</span><span id="mood-val">90</span></div><div class="stat-bar"><div class="stat-bar-fill mood" id="mood-bar" style="width:90%"></div></div></div>
-                    <div class="stat-bar-group"><div class="stat-bar-label"><span>成长</span><span id="growth-val">10</span></div><div class="stat-bar"><div class="stat-bar-fill growth" id="growth-bar" style="width:10%"></div></div></div>
+                    <div class="stat-bar-group"><div class="stat-bar-label"><span>成长</span><span id="growth-val">10</span></div><div class="stat-bar"><div class="stat-bar-fill growth" id="growth-bar" style="width:10%"></div><div class="growth-milestones"><div class="growth-milestone" data-label="幼年" style="left:30%"></div><div class="growth-milestone" data-label="成年" style="left:70%"></div><div class="growth-milestone" data-label="飞升" style="left:100%"></div></div></div></div>
                 </div>
             </div>
 
@@ -3096,6 +3105,42 @@
         <div class="ascension-creature" id="ascension-creature"><img src="" alt="异兽飞升"></div>
         <div class="ascension-title" id="ascension-title">🏆 异兽飞升！</div>
         <div class="ascension-card" id="ascension-card"></div>
+    </div>
+
+    <!-- ===== PRIVILEGE PANEL ===== -->
+    <div class="modal-overlay" id="privilege-modal">
+        <div class="modal" style="max-width:420px">
+            <h3>🔮 特权模式</h3>
+            <p style="font-size:0.8rem;color:var(--mist);margin:0.3rem 0 1rem">快速切换成长阶段，查看异兽进化效果</p>
+            <div id="privilege-current" style="text-align:center;margin-bottom:1rem;font-size:0.85rem"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:1rem">
+                <button class="btn btn-outline" onclick="setGrowthStage(10)" style="padding:0.6rem">🥚 蛋期<br><small>成长值 10</small></button>
+                <button class="btn btn-outline" onclick="setGrowthStage(29)" style="padding:0.6rem">🥚 蛋期(满)<br><small>成长值 29</small></button>
+                <button class="btn btn-outline" onclick="setGrowthStage(30)" style="padding:0.6rem">🐣 幼年期<br><small>成长值 30</small></button>
+                <button class="btn btn-outline" onclick="setGrowthStage(69)" style="padding:0.6rem">🐣 幼年(满)<br><small>成长值 69</small></button>
+                <button class="btn btn-outline" onclick="setGrowthStage(70)" style="padding:0.6rem">🐉 成年期<br><small>成长值 70</small></button>
+                <button class="btn btn-outline" onclick="setGrowthStage(99)" style="padding:0.6rem">🐉 成年(满)<br><small>成长值 99</small></button>
+            </div>
+            <div style="margin-bottom:1rem">
+                <label style="font-size:0.8rem;color:var(--mist)">精确调整成长值</label>
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.3rem">
+                    <input type="range" min="0" max="100" value="10" id="privilege-slider" oninput="setGrowthExact(this.value)" style="flex:1;accent-color:var(--gold)">
+                    <span id="privilege-slider-val" style="font-weight:700;min-width:30px;text-align:center">10</span>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:1rem">
+                <button class="btn btn-gold" onclick="setGrowthStage(100)" style="padding:0.6rem">✨ 触发飞升<br><small>成长值 100</small></button>
+                <button class="btn btn-outline" onclick="privilegeMaxAll()" style="padding:0.6rem">🍎 满状态<br><small>饱食+心情</small></button>
+            </div>
+            <div style="background:var(--warm-bg);border-radius:10px;padding:0.8rem;margin-bottom:0.8rem;font-size:0.78rem;line-height:1.6">
+                <strong>📖 阶段说明</strong><br>
+                <span style="color:#8a6a3a">🥚 蛋期(0-29)</span>：摇晃动画，棕色光晕<br>
+                <span style="color:#4a8a4a">🐣 幼年期(30-69)</span>：缩小88%，绿色徽章<br>
+                <span style="color:#b8941e">🐉 成年期(70-99)</span>：金色光晕，华丽外观<br>
+                <span style="color:var(--vermilion)">✨ 飞升(100)</span>：解锁结局画面和档案卡
+            </div>
+            <button class="btn btn-outline" onclick="closePrivilegePanel()" style="width:100%">关闭</button>
+        </div>
     </div>
 
     <!-- ===== DATA PANEL MODAL ===== -->
@@ -4923,6 +4968,8 @@
                 }
             }
             updateStageLabel();
+            const privBtn = document.getElementById('privilege-btn');
+            if (privBtn) privBtn.style.display = (state.name === 'shlxll') ? '' : 'none';
             const stageClass = 'stage-' + evolutionStageKey(state.evolutionStage);
 
             if (av) av.className = 'creature-avatar';
@@ -5204,8 +5251,9 @@
                 const item = document.createElement('div');
                 item.className = 'lb-item' + (f.isMe ? ' me' : '');
                 item.style.animationDelay = (i * 0.06) + 's';
-                const avatarHTML = f.avatar && f.avatar.startsWith('http')
-                    ? `<img class="lb-avatar" src="${f.avatar}" alt="${f.name}">`
+                const isImg = f.avatar && (f.avatar.startsWith('http') || /\.(jpg|jpeg|png|gif|webp|svg)/i.test(f.avatar));
+                const avatarHTML = isImg
+                    ? `<img class="lb-avatar" src="${f.avatar}" alt="${f.name}" style="object-fit:cover">`
                     : `<div class="lb-avatar" style="display:flex;align-items:center;justify-content:center;font-size:1.4rem;background:var(--warm-bg)">${f.avatar || '🐾'}</div>`;
                 item.innerHTML = `
                     <div class="lb-rank ${rankClass}">${rank}</div>
@@ -5248,6 +5296,69 @@
         function closeSettings() {
             const dd = document.getElementById('settings-dropdown');
             if (dd) dd.classList.remove('active');
+        }
+        // ===== PRIVILEGE MODE =====
+        function openPrivilegePanel() {
+            playSound('click');
+            const modal = document.getElementById('privilege-modal');
+            if (!modal) return;
+            modal.classList.add('active');
+            updatePrivilegeCurrent();
+            const slider = document.getElementById('privilege-slider');
+            if (slider) { slider.value = state.growth; document.getElementById('privilege-slider-val').textContent = state.growth; }
+        }
+        function closePrivilegePanel() {
+            const modal = document.getElementById('privilege-modal');
+            if (modal) modal.classList.remove('active');
+        }
+        function updatePrivilegeCurrent() {
+            const el = document.getElementById('privilege-current');
+            if (!el) return;
+            const stage = getEvolutionStage(state.growth);
+            const label = evolutionStageLabel(stage);
+            el.innerHTML = `当前：${label}　成长值：${state.growth}`;
+        }
+        function setGrowthStage(val) {
+            const v = Number(val);
+            state.growth = v;
+            // 重置 stage 以便触发进化
+            if (v < 30) { state.stage = 'baby'; state.evolutionStage = 0; state.ended = false; }
+            else if (v < 70) { state.stage = 'teen'; state.evolutionStage = 1; state.ended = false; }
+            else if (v < 100) { state.stage = 'adult'; state.evolutionStage = 2; state.ended = false; }
+            // 飞升
+            if (v >= 100) {
+                state.stage = 'adult';
+                state.evolutionStage = 2;
+                closePrivilegePanel();
+                checkGrowth();
+                return;
+            }
+            updateStats();
+            updatePrivilegeCurrent();
+            const slider = document.getElementById('privilege-slider');
+            if (slider) { slider.value = v; document.getElementById('privilege-slider-val').textContent = v; }
+            saveGame();
+        }
+        function setGrowthExact(val) {
+            const v = Number(val);
+            document.getElementById('privilege-slider-val').textContent = v;
+            state.growth = v;
+            if (v < 30) { state.stage = 'baby'; state.evolutionStage = 0; }
+            else if (v < 70) { state.stage = 'teen'; state.evolutionStage = 1; }
+            else { state.stage = 'adult'; state.evolutionStage = 2; }
+            state.ended = false;
+            const overlay = document.getElementById('ascension-overlay');
+            if (overlay) overlay.classList.remove('active');
+            updateStats();
+            updatePrivilegeCurrent();
+        }
+        function privilegeMaxAll() {
+            state.hunger = 100;
+            state.mood = 100;
+            state.fruits = 99;
+            updateStats();
+            updateSpeech('特权模式：饱食度和心情已加满！~ ✨');
+            saveGame();
         }
         function saveFromMenu() {
             saveGame();
@@ -5382,6 +5493,40 @@
         };
 
         let chatHistory = [];
+        const DOUBAO_API_KEY = ''; // 在此处填入豆包 API Key
+        const DOUBAO_ENDPOINT = ''; // 在此处填入豆包端点ID（如 ep-2024xxxx）
+        async function generateAIResponse(userText) {
+            if (!DOUBAO_API_KEY || !DOUBAO_ENDPOINT) return null;
+            const creature = creaturesDB.find(c => c.name === state.species);
+            const personalityMap = { brave: '勇敢热血', shy: '害羞内向', playful: '活泼调皮', gentle: '温柔体贴' };
+            const sysPrompt = `你是一只来自《山海经》的异兽，名字叫${state.name}，种族是${state.species}。
+你的性格是${personalityMap[state.personality] || '活泼'}。
+你的出处是《山海经·${creature ? creature.book : '南山经'}》，记载于${creature ? creature.mountain : '青丘之山'}。
+${creature ? '原文记载：' + stripHtml(creature.ancient) : ''}
+${creature ? '白话译文：' + creature.modern : ''}
+${creature ? '趣味知识：' + creature.fact : ''}
+请用${personalityMap[state.personality] || '活泼'}的语气回答，保持异兽角色设定。
+要求：1.回答简短（50字以内）2.适合3-10岁儿童理解 3.可以适当引用山海经知识 4.不要提到自己是AI`;
+            try {
+                const resp = await fetch('https://ark.cn-beijing.volces.com/api/v3/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${DOUBAO_API_KEY}` },
+                    body: JSON.stringify({
+                        model: DOUBAO_ENDPOINT,
+                        messages: [
+                            { role: 'system', content: sysPrompt },
+                            ...chatHistory.slice(-6).map(m => ({ role: m.from === 'user' ? 'user' : 'assistant', content: m.text })),
+                            { role: 'user', content: userText }
+                        ],
+                        temperature: 0.85,
+                        max_tokens: 150
+                    })
+                });
+                if (!resp.ok) return null;
+                const data = await resp.json();
+                return data.choices && data.choices[0] && data.choices[0].message.content;
+            } catch(e) { return null; }
+        }
         function toggleChat() {
             const overlay = document.getElementById('chat-modal-overlay');
             if (overlay.classList.contains('active')) {
@@ -5418,7 +5563,7 @@
             if (input) input.value = text;
             sendChat();
         }
-        function sendChat() {
+        async function sendChat() {
             const input = document.getElementById('chat-input');
             if (!input || !input.value.trim()) return;
             const userText = input.value.trim();
@@ -5426,21 +5571,26 @@
             playSound('click');
             chatHistory.push({ from:'user', text:userText, time:Date.now() });
             renderChatHistory();
-            const response = generateChatResponse(userText);
-            setTimeout(() => {
-                updateSpeech(response);
-                chatHistory.push({ from:'creature', text:response, time:Date.now() });
-                renderChatHistory();
-                const overlay = document.getElementById('chat-modal-overlay');
-                if (!overlay.classList.contains('active')) {
-                    const dot = document.getElementById('chat-new-dot');
-                    if (dot) dot.style.display = '';
-                }
-                const joy = Math.floor(Math.random() * 3);
-                state.mood = Math.min(100, state.mood + joy);
-                updateStats();
-                playSound('success');
-            }, 400);
+            let response = null;
+            const chatSendBtn = document.getElementById('chat-send-btn');
+            if (chatSendBtn) { chatSendBtn.textContent = '思考中...'; chatSendBtn.disabled = true; }
+            try {
+                response = await generateAIResponse(userText);
+            } catch(e) { response = null; }
+            if (!response) response = generateChatResponse(userText);
+            if (chatSendBtn) { chatSendBtn.textContent = '发送'; chatSendBtn.disabled = false; }
+            updateSpeech(response);
+            chatHistory.push({ from:'creature', text:response, time:Date.now() });
+            renderChatHistory();
+            const overlay = document.getElementById('chat-modal-overlay');
+            if (!overlay.classList.contains('active')) {
+                const dot = document.getElementById('chat-new-dot');
+                if (dot) dot.style.display = '';
+            }
+            const joy = Math.floor(Math.random() * 3);
+            state.mood = Math.min(100, state.mood + joy);
+            updateStats();
+            playSound('success');
         }
         function generateChatResponse(text) {
             const personality = state.personality;
@@ -6200,7 +6350,7 @@
             const el = document.getElementById('stage-label');
             if (!el) return;
             const key = evolutionStageKey(state.evolutionStage);
-            el.className = 'stage-label ' + key;
+            el.className = 'stage-badge ' + key;
             el.textContent = evolutionStageLabel(state.evolutionStage);
         }
         function incStat(key) {
