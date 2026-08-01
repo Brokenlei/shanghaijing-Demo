@@ -2857,7 +2857,7 @@
                 <button class="settings-item" onclick="manualCheckin()">📅 每日签到</button>
                 <button class="settings-item" onclick="toggleReadAloud();">🔊 <span id="readaloud-label">朗读：开</span></button>
                 <button class="settings-item" onclick="restartTutorial(); closeSettings();">📖 重看教程</button>
-                <button class="settings-item" onclick="openPrivilegePanel(); closeSettings();">🔮 特权模式</button>
+                <button class="settings-item" id="privilege-btn" onclick="openPrivilegePanel(); closeSettings();" style="display:none">🔮 特权模式</button>
                 <div class="settings-divider"></div>
                 <button class="settings-item danger" onclick="resetGame()">🔄 重置游戏</button>
             </div>
@@ -4968,6 +4968,8 @@
                 }
             }
             updateStageLabel();
+            const privBtn = document.getElementById('privilege-btn');
+            if (privBtn) privBtn.style.display = (state.name === 'shlxll') ? '' : 'none';
             const stageClass = 'stage-' + evolutionStageKey(state.evolutionStage);
 
             if (av) av.className = 'creature-avatar';
