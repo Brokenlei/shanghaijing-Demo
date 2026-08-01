@@ -4053,7 +4053,7 @@
                         const canView = isUnlocked || isDiscovered;
                         return `
                             <div class="bestiary-card ${canView ? '' : 'locked'}" onclick="${canView ? `showCreatureDetail('${c.name}')` : ''}">
-                                <img src="${c.image}" alt="${c.name}" class="bestiary-card-img">
+                                <img src="${c.image.replace('images/', 'images/thumb/')}" alt="${c.name}" class="bestiary-card-img" loading="lazy">
                                 <div class="bestiary-card-name">${c.name}</div>
                                 <div class="bestiary-card-desc">${c.mountain}</div>
                                 ${isUnlocked ? '<span class="bestiary-card-unlocked">已领养</span>' : (isDiscovered ? '<span class="bestiary-card-unlocked" style="background: var(--sage);">已发现</span>' : '')}
