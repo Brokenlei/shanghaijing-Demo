@@ -5255,8 +5255,9 @@
                 item.className = 'lb-item' + (f.isMe ? ' me' : '');
                 item.style.animationDelay = (i * 0.06) + 's';
                 const isImg = f.avatar && (f.avatar.startsWith('http') || /\.(jpg|jpeg|png|gif|webp|svg)/i.test(f.avatar));
+                const fallbackEmoji = (currentCreature && f.isMe) ? (currentCreature.action || '🐾') : (f.avatar || '🐾');
                 const avatarHTML = isImg
-                    ? `<img class="lb-avatar" src="${f.avatar}" alt="${f.name}" style="object-fit:cover">`
+                    ? `<img class="lb-avatar" src="${f.avatar}" alt="${f.name}" style="object-fit:cover" onerror="this.outerHTML='<div class=&quot;lb-avatar&quot; style=&quot;display:flex;align-items:center;justify-content:center;font-size:1.4rem;background:var(--warm-bg)&quot;>${fallbackEmoji}</div>'">`
                     : `<div class="lb-avatar" style="display:flex;align-items:center;justify-content:center;font-size:1.4rem;background:var(--warm-bg)">${f.avatar || '🐾'}</div>`;
                 item.innerHTML = `
                     <div class="lb-rank ${rankClass}">${rank}</div>
